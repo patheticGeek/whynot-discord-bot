@@ -1,0 +1,37 @@
+{
+  "name": "whynot-discord-bot",
+  "version": "1.0.0",
+  "description": "Just a cute little bot for discord started at 4:45am",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/patheticGeek/whynot-discord-bot.git"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "whynot",
+    "why",
+    "not",
+    "javascript",
+    "js"
+  ],
+  "author": "pathetic_geek",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/patheticGeek/whynot-discord-bot/issues"
+  },
+  "homepage": "https://github.com/patheticGeek/whynot-discord-bot#readme",
+  "dependencies": {
+    "axios": "^0.19.2",
+    "discord.js": "^12.3.1",
+    "dotenv": "^8.2.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.4"
+  }
+}
