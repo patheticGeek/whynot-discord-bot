@@ -40,7 +40,7 @@ async function execute(message, args) {
         var msg = voiceChannels[voiceChannelId]
           .map((item, i, arr) => {
             if (i === 0) {
-              if (arr.length === 1) return `Now playing: \`${item.title}\`\n\nNo more songs added!`;
+              if (arr.length === 0) return `Now playing: \`${item.title}\`\n\nNo more songs added!`;
               return `Now playing: \`${item.title}\`\n\nUp next:`;
             }
             return `${i + 1}. \`${item.title} [${item.duration}]\` requested by ${item.requestedBy}\n`;
