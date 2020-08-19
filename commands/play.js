@@ -1,9 +1,20 @@
 const ytdl = require("ytdl-core");
 const getYoutubeDetails = require("../util/getYoutubeDetails");
+const searchFromYoutube = require("../util/searchFromYoutube");
+const { logger } = require("../util/logger");
 
-// { type 'youtube', duration, title, link  }
+// { type 'youtube', duration, title, link, requestedBy  }
 
 let voiceChannels = {};
+
+function getCurrentSong(channelId) {
+  return voiceChannels[channelId] && voiceChannels[channelId].length > 0 ? voiceChannels[channelId][0] : null;
+}
+
+function removeSong(channelId, position = 0) {
+  if (!voiceChannels[channelId] || voiceChannels[channelId].length === 0) return;
+  return !!voiceChannels[channelId].splice(position, 1);
+}
 
 async function execute(message, args) {
   if (message.channel.type === "dm") return;
@@ -19,33 +30,68 @@ async function execute(message, args) {
   const voiceChannelId = voiceChannel.id;
 
   try {
-    const link = args[0];
+    const arg = args.join(" ");
+    var link;
+
+    if (arg.trim() === "queue") {
+      if (!voiceChannels[voiceChannelId] || voiceChannels[voiceChannelId].length === 0) {
+        throw new Error("No songs in queue.");
+      } else {
+        var msg = voiceChannels[voiceChannelId]
+          .map((item, i, arr) => {
+            if (i === 0) {
+              if (arr.length === 1) return `Now playing: \`${item.title}\`\n\nNo more songs added!`;
+              return `Now playing: \`${item.title}\`\n\nUp next:`;
+            }
+            return `${i + 1}. \`${item.title} [${item.duration}]\` requested by ${item.requestedBy}\n`;
+          })
+          .join("\n");
+        message.channel.send(msg);
+        return;
+      }
+    }
+
+    message.channel.send(`:mag_right: Searching **${arg}**`);
+
+    if (ytdl.validateURL(arg)) {
+      link = arg.trim();
+    } else {
+      const { id, title } = await searchFromYoutube(arg);
+      link = `https://www.youtube.com/watch?v=${id}`;
+      message.channel.send(`:relieved: Found \`${title}\``);
+    }
+
+    const details = await getYoutubeDetails(link);
     if (voiceChannels[voiceChannelId]) {
-      const details = await getYoutubeDetails(link);
-      voiceChannels[voiceChannelId].push({ type: "youtube", link, title: details.title, duration: details.duration });
-      console.log(voiceChannels[voiceChannelId]);
+      voiceChannels[voiceChannelId].push({
+        type: "youtube",
+        link,
+        title: details.title,
+        duration: details.duration,
+        requestedBy: message.member.user.username
+      });
       message.channel.send(`:thumbsup: \`${details.title}\` added to queue at position ${voiceChannels[voiceChannelId].length - 1}`);
     } else {
-      message.channel.send(`:mag_right: Searching **${link}**`);
-      const details = await getYoutubeDetails(link);
-      voiceChannels[voiceChannelId] = [{ type: "youtube", link, title: details.title, duration: details.duration }];
+      voiceChannels[voiceChannelId] = [
+        { type: "youtube", link, title: details.title, duration: details.duration, requestedBy: message.member.user.username }
+      ];
       const connection = await voiceChannel.join();
       await playIt(message, voiceChannel, connection);
     }
   } catch (e) {
-    console.log(e);
+    logger(e);
     message.channel.send(`:x: ${e.message}`);
   }
 }
 
 async function playIt(message, voiceChannel, connection) {
   const channelId = message.member.voice.channel.id;
-  const current = voiceChannels[channelId][0];
+  const current = getCurrentSong(channelId);
   if (current.type === "youtube") {
-    message.channel.send(`:musical_note: Playing \`${current.title}\` - Now!`);
+    message.channel.send(`:musical_note: Playing \`${current.title} [${current.duration}]\` - Now!`);
     await playFromYoutube(connection, current.link);
   }
-  voiceChannels[channelId].splice(0, 1);
+  removeSong(channelId);
   if (voiceChannels[channelId].length > 0) playIt(message, voiceChannel, connection);
   else voiceChannel.leave();
 }

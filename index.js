@@ -18,7 +18,7 @@ function setCommands(client) {
 }
 
 client.on("ready", () => {
-  logger(`Bot ready with prefix ${process.env.PREFIX}`);
+  logger(`Bot ready with default prefix ${process.env.PREFIX}`);
 });
 
 client.on("message", (message) => {
