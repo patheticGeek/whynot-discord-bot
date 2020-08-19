@@ -1,9 +1,19 @@
 const ytdl = require("ytdl-core");
 const getYoutubeDetails = require("../util/getYoutubeDetails");
+const { logger } = require("../util/logger");
 
-// { type 'youtube', duration, title, link  }
+// { type 'youtube', duration, title, link, requestedBy  }
 
 let voiceChannels = {};
+
+function getCurrentSong(channelId) {
+  return voiceChannels[channelId] && voiceChannels[channelId].length > 0 ? voiceChannels[channelId][0] : null;
+}
+
+function removeSong(channelId, position = 0) {
+  if (!voiceChannels[channelId] || voiceChannels[channelId].length === 0) return;
+  return !!voiceChannels[channelId].splice(position, 1);
+}
 
 async function execute(message, args) {
   if (message.channel.type === "dm") return;
@@ -22,30 +32,37 @@ async function execute(message, args) {
     const link = args[0];
     if (voiceChannels[voiceChannelId]) {
       const details = await getYoutubeDetails(link);
-      voiceChannels[voiceChannelId].push({ type: "youtube", link, title: details.title, duration: details.duration });
-      console.log(voiceChannels[voiceChannelId]);
+      voiceChannels[voiceChannelId].push({
+        type: "youtube",
+        link,
+        title: details.title,
+        duration: details.duration,
+        requestedBy: message.member.user.username
+      });
       message.channel.send(`:thumbsup: \`${details.title}\` added to queue at position ${voiceChannels[voiceChannelId].length - 1}`);
     } else {
       message.channel.send(`:mag_right: Searching **${link}**`);
       const details = await getYoutubeDetails(link);
-      voiceChannels[voiceChannelId] = [{ type: "youtube", link, title: details.title, duration: details.duration }];
+      voiceChannels[voiceChannelId] = [
+        { type: "youtube", link, title: details.title, duration: details.duration, requestedBy: message.member.user.username }
+      ];
       const connection = await voiceChannel.join();
       await playIt(message, voiceChannel, connection);
     }
   } catch (e) {
-    console.log(e);
+    logger(e);
     message.channel.send(`:x: ${e.message}`);
   }
 }
 
 async function playIt(message, voiceChannel, connection) {
   const channelId = message.member.voice.channel.id;
-  const current = voiceChannels[channelId][0];
+  const current = getCurrentSong(channelId);
   if (current.type === "youtube") {
-    message.channel.send(`:musical_note: Playing \`${current.title}\` - Now!`);
+    message.channel.send(`:musical_note: Playing \`${current.title} [${current.duration}]\` - Now!`);
     await playFromYoutube(connection, current.link);
   }
-  voiceChannels[channelId].splice(0, 1);
+  removeSong();
   if (voiceChannels[channelId].length > 0) playIt(message, voiceChannel, connection);
   else voiceChannel.leave();
 }
